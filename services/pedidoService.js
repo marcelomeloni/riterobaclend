@@ -61,7 +61,17 @@ async function processCheckout(id_cliente, payload) {
   const pedido = await getById(pedido_id);
 
   // 3. Integração Mercado Pago
-  const mpClient = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN, options: { timeout: 10000 } });
+  const mpAccessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
+
+  // 🔍 LOG DE DEBUG — confirma qual credencial o backend está usando (TEST- vs APP_USR-)
+  console.log("🟣 [MP DEBUG] Credencial do backend", {
+    pedido_id: pedido.id,
+    access_token_prefix: mpAccessToken ? mpAccessToken.substring(0, 12) + "..." : "AUSENTE",
+    is_test_credential: mpAccessToken?.startsWith("TEST-"),
+    is_prod_credential: mpAccessToken?.startsWith("APP_USR-")
+  });
+
+  const mpClient = new MercadoPagoConfig({ accessToken: mpAccessToken, options: { timeout: 10000 } });
   const payment = new Payment(mpClient);
   let mpResponse = null;
 

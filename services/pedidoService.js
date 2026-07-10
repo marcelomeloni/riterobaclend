@@ -94,7 +94,33 @@ async function processCheckout(id_cliente, payload) {
         },
         external_reference: pedido.id
       };
+
+      // 🔍 LOG DE DEBUG — remover depois de resolver o problema do token
+      console.log("🟡 [MP DEBUG] Enviando pagamento com cartão", {
+        pedido_id: pedido.id,
+        metodo_pagamento,
+        token_prefix: formData.token ? formData.token.substring(0, 8) + "..." : null,
+        token_length: formData.token?.length,
+        payment_method_id: formData.payment_method_id,
+        installments: paymentData.installments,
+        valor: paymentData.transaction_amount,
+        timestamp_backend: new Date().toISOString()
+      });
+
       mpResponse = await payment.create({ body: paymentData });
+
+      console.log("🟢 [MP DEBUG] Resposta do MP", {
+        id: mpResponse?.id,
+        status: mpResponse?.status,
+        status_detail: mpResponse?.status_detail
+      });
+    } else if (metodo_pagamento === "cartao_credito" || metodo_pagamento === "cartao_debito") {
+      // Caiu aqui = método era cartão mas o formData.token não veio (frontend não gerou o token)
+      console.error("🔴 [MP DEBUG] formData.token ausente! Pagamento não será processado.", {
+        pedido_id: pedido.id,
+        metodo_pagamento,
+        formData_recebido: formData
+      });
     }
     
     // Se o pagamento for criado com sucesso, salvamos o transaction_id no pedido
@@ -125,6 +151,15 @@ async function processCheckout(id_cliente, payload) {
     }
   } catch (mpError) {
     console.error("Erro ao gerar pagamento MP:", mpError);
+    // 🔍 LOG DE DEBUG — detalhe completo do erro (útil pra "Card Token not found", code 2006)
+    console.error("🔴 [MP DEBUG] Detalhe do erro", {
+      pedido_id: pedido.id,
+      metodo_pagamento,
+      mp_message: mpError.message,
+      mp_cause: mpError.cause,
+      mp_status: mpError.status,
+      timestamp_backend: new Date().toISOString()
+    });
     await supabase.from("pedido").update({ status: "CANCELADO" }).eq("id", pedido.id);
     
     let errMsg = "Erro ao processar o pagamento. Verifique os dados do cartão.";

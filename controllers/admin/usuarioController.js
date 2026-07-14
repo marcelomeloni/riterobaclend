@@ -3,7 +3,9 @@ const usuarioService = require("../../services/usuarioService");
 /** GET /api/admin/usuarios */
 async function index(req, res, next) {
   try {
-    const usuarios = await usuarioService.listAll();
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const usuarios = await usuarioService.listAll({ page, limit });
     res.json(usuarios);
   } catch (err) { next(err); }
 }

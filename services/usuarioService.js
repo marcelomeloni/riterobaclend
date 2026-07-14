@@ -4,12 +4,16 @@ const bcrypt = require("bcryptjs");
 const SALT_ROUNDS = 12;
 
 // ─── LIST (Todos: clientes + admins) ───
-async function listAll() {
-  // Busca todas as pessoas
-  const { data: pessoas, error } = await supabase
+async function listAll({ page = 1, limit = 20 } = {}) {
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  // Busca todas as pessoas com paginação
+  const { data: pessoas, count, error } = await supabase
     .from("pessoa")
-    .select("id, nome, email")
-    .order("nome");
+    .select("id, nome, email", { count: "exact" })
+    .order("nome")
+    .range(from, to);
 
   if (error) throw error;
 
@@ -22,7 +26,7 @@ async function listAll() {
   const clienteMap = new Map((clientes || []).map((c) => [c.id_pessoa, c]));
 
   // Monta lista unificada
-  return pessoas.map((p) => ({
+  const result = pessoas.map((p) => ({
     id: p.id,
     nome: p.nome,
     email: p.email,
@@ -30,6 +34,13 @@ async function listAll() {
     cpf: clienteMap.get(p.id)?.cpf || null,
     telefone: clienteMap.get(p.id)?.telefone || null,
   }));
+
+  return {
+    data: result,
+    total: count || 0,
+    page: Number(page),
+    limit: Number(limit)
+  };
 }
 
 // ─── GET BY ID ───

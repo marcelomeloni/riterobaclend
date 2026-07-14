@@ -64,19 +64,25 @@ async function getAnalytics(id) {
   const { data: cupom, error: cupomErr } = await supabase.from("cupom").select("*").eq("id", id).single();
   if (cupomErr) throw cupomErr;
 
-  const { data: pedidos, error: pedidosErr } = await supabase
+  const { data: pedidos_raw, error: pedidosErr } = await supabase
     .from("pedido")
-    .select("*, cliente:id_cliente ( pessoa ( nome, email ) )")
+    .select(`
+      *,
+      cliente:id_cliente ( pessoa ( nome, email ) )
+    `)
     .eq("id_cupom", id)
     .order("data_criacao", { ascending: false });
   if (pedidosErr) throw pedidosErr;
 
+  // Filtra apenas pedidos pagos/validados
+  const pedidos = pedidos_raw.filter(p => ["PREPARANDO", "ENVIADO", "ENTREGUE"].includes(p.status));
+
   const total_pedidos = pedidos.length;
   const faturamento_total = pedidos.reduce((acc, p) => acc + Number(p.valor_total), 0);
   const total_descontos = pedidos.reduce((acc, p) => acc + Number(p.valor_desconto), 0);
-  const ticket_medio = total_pedidos > 0 ? faturamento_total / total_pedidos : 0;
   
   const faturamento_produtos = pedidos.reduce((acc, p) => acc + Number(p.valor_pedidos || (p.valor_total - p.valor_frete + p.valor_desconto)), 0);
+  const ticket_medio = total_pedidos > 0 ? faturamento_produtos / total_pedidos : 0;
   const comissao_estimada = faturamento_produtos * 0.10; // 10% de comissão (afiliados)
 
   return {

@@ -2,14 +2,22 @@ const { supabase } = require("../config/supabase");
 
 // Helper para buscar lat/lon via Nominatim (OpenStreetMap)
 async function getCoordinatesFromAddress(pdvData) {
-  const { rua, numero, bairro, cidade, estado } = pdvData;
+  const { rua, numero, cidade, estado } = pdvData;
   const addressParts = [];
-  if (rua) addressParts.push(`${rua}, ${numero || ""}`);
-  if (bairro) addressParts.push(bairro);
+  
+  // Extrai apenas números do campo numero (remove "sala B", "Apto 3", etc)
+  const numClean = numero ? numero.replace(/\D/g, '') : "";
+
+  if (rua) {
+    if (numClean) addressParts.push(`${rua}, ${numClean}`);
+    else addressParts.push(rua);
+  }
+  
   if (cidade) addressParts.push(cidade);
   if (estado) addressParts.push(estado);
+  addressParts.push("Brasil"); // Melhora a precisão para Nominatim
   
-  if (addressParts.length === 0) return null;
+  if (addressParts.length <= 1) return null;
   
   const query = encodeURIComponent(addressParts.join(", "));
   

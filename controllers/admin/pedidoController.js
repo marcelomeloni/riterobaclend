@@ -1,11 +1,16 @@
 const pedidoService = require("../../services/pedidoService");
 const { supabase } = require("../../config/supabase");
 
-/** GET /api/admin/pedidos */
+/** GET /api/admin/pedidos?page=1&limit=15&status=PREPARANDO&search=João */
 async function index(req, res, next) {
   try {
-    const pedidos = await pedidoService.listAll();
-    res.json(pedidos);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 15));
+    const status = req.query.status || undefined;
+    const search = req.query.search || undefined;
+
+    const result = await pedidoService.listAll({ page, limit, status, search });
+    res.json(result);
   } catch (err) { next(err); }
 }
 

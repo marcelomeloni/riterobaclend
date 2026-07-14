@@ -22,6 +22,8 @@ function getDateRange(period) {
   return startDate;
 }
 
+const VALID_STATUSES = ["PREPARANDO", "ENTREGUE", "ENVIADO"];
+
 async function getDashboardStats(period = "tudo") {
   const startDate = getDateRange(period);
 
@@ -49,17 +51,17 @@ async function getDashboardStats(period = "tudo") {
   const { data: pedidos, error: errPedidos } = await queryPedidos;
   if (errPedidos) throw errPedidos;
 
-  // KPIs
+  // KPIs — só conta pedidos com status válido (preparando, entregue, enviado)
   const vendasMes = pedidos
-    .filter(p => p.status !== "cancelado")
+    .filter(p => VALID_STATUSES.includes(p.status))
     .reduce((acc, curr) => acc + Number(curr.valor_total || 0), 0);
 
   const totalPedidos = pedidos.length;
 
-  // Clientes
-  let queryClientes = supabase.from("cliente").select("*", { count: "exact", head: true });
-  if (startDate) queryClientes = queryClientes.gte("data_criacao", startDate.toISOString());
-  const { count: totalClientes, error: errClientes } = await queryClientes;
+  // Clientes (total geral — tabela cliente não tem data_criacao)
+  const { count: totalClientes, error: errClientes } = await supabase
+    .from("cliente")
+    .select("*", { count: "exact", head: true });
   
   // Cafes Ativos (geral, não afetado pela data para saber o catálogo atual)
   const { count: totalCafes, error: errCafes } = await supabase.from("cafe").select("*", { count: "exact", head: true });
@@ -70,7 +72,7 @@ async function getDashboardStats(period = "tudo") {
   
   const receitaMap = {};
   pedidos.forEach(p => {
-    if (p.status === "cancelado") return;
+    if (!VALID_STATUSES.includes(p.status)) return;
     const date = new Date(p.data_criacao);
     let key;
     if (isDaily) {
@@ -98,25 +100,38 @@ async function getDashboardStats(period = "tudo") {
     value: statusMap[status]
   }));
 
-  // 3. Top Cafés (Gráfico de Barras)
+  // 3. Top Cafés (Gráfico de Barras) - Todo o histórico, sem filtro de data
+  const { data: allPedidos, error: errAll } = await supabase
+    .from("pedido")
+    .select(`
+      status,
+      item_pedido (
+        quantidade,
+        variante_cafe (
+          cafe ( nome )
+        )
+      )
+    `);
+    
   const cafeMap = {};
-  pedidos.forEach(p => {
-    if (p.status === "cancelado") return;
-    if (p.item_pedido) {
-      p.item_pedido.forEach(item => {
-        const cafeName = item.variante_cafe?.cafe?.nome;
-        if (cafeName) {
-          if (!cafeMap[cafeName]) cafeMap[cafeName] = 0;
-          cafeMap[cafeName] += item.quantidade;
-        }
-      });
-    }
-  });
+  if (allPedidos) {
+    allPedidos.forEach(p => {
+      if (!VALID_STATUSES.includes(p.status)) return;
+      if (p.item_pedido) {
+        p.item_pedido.forEach(item => {
+          const cafeName = item.variante_cafe?.cafe?.nome;
+          if (cafeName) {
+            if (!cafeMap[cafeName]) cafeMap[cafeName] = 0;
+            cafeMap[cafeName] += item.quantidade;
+          }
+        });
+      }
+    });
+  }
   
   const topCafes = Object.keys(cafeMap)
     .map(name => ({ name, quantidade: cafeMap[name] }))
-    .sort((a, b) => b.quantidade - a.quantidade)
-    .slice(0, 5);
+    .sort((a, b) => b.quantidade - a.quantidade);
 
   // 4. Últimos Pedidos (Tabela)
   const { data: ultimosPedidos, error: errUltimos } = await supabase

@@ -325,7 +325,7 @@ async function sendRecoveryEmail(pedido, cliente) {
             ${pedido.itens.map(item => `
               <li style="padding: 12px 0; border-bottom: 1px dashed #EED4C2; color: #444;">
                 <div style="font-weight: 600; color: #111;">${item.quantidade}x ${item.variante_cafe?.cafe?.nome || 'Café Especial Ritero'}</div>
-                <div style="font-size: 14px; margin-top: 4px;">${item.peso_gramas}g • ${item.moagem}</div>
+                <div style="font-size: 14px; margin-top: 4px;">${item.variante_cafe?.peso_gramas || ''}g • ${item.variante_cafe?.preparo || 'Em grão'}</div>
               </li>
             `).join('')}
           </ul>

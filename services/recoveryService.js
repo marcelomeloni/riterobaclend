@@ -28,9 +28,9 @@ class RecoveryService {
           ),
           itens:item_pedido (
             quantidade,
-            peso_gramas,
-            moagem,
             variante_cafe:id_variante_cafe (
+              peso_gramas,
+              preparo,
               cafe:id_cafe ( nome )
             )
           )

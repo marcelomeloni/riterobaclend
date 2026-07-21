@@ -30,7 +30,9 @@ class RecoveryService {
             quantidade,
             peso_gramas,
             moagem,
-            cafe:id_cafe ( nome )
+            variante_cafe:id_variante_cafe (
+              cafe:id_cafe ( nome )
+            )
           )
         `)
         .eq("status", "AGUARDANDO_PAGAMENTO")

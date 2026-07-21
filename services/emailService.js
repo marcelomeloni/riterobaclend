@@ -324,7 +324,7 @@ async function sendRecoveryEmail(pedido, cliente) {
           <ul style="list-style: none; padding: 0; margin: 0;">
             ${pedido.itens.map(item => `
               <li style="padding: 12px 0; border-bottom: 1px dashed #EED4C2; color: #444;">
-                <div style="font-weight: 600; color: #111;">${item.quantidade}x ${item.cafe?.nome || 'Café Especial Ritero'}</div>
+                <div style="font-weight: 600; color: #111;">${item.quantidade}x ${item.variante_cafe?.cafe?.nome || 'Café Especial Ritero'}</div>
                 <div style="font-size: 14px; margin-top: 4px;">${item.peso_gramas}g • ${item.moagem}</div>
               </li>
             `).join('')}
@@ -335,8 +335,8 @@ async function sendRecoveryEmail(pedido, cliente) {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: cliente.email,
-      subject: \`Esqueceu seu café na bancada? ☕\`,
-      html: \`
+      subject: `Esqueceu seu café na bancada? ☕`,
+      html: `
         <!DOCTYPE html>
         <html>
         <head>

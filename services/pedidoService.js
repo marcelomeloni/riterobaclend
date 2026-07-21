@@ -74,7 +74,6 @@ async function processCheckout(id_cliente, payload) {
     id_cafe: i.id,
     peso_gramas: i.peso_gramas || 250,
     moagem: i.moagem || "Em grão",
-    pontuacao: i.pontuacao || "85",
     quantidade: i.quantidade
   }));
 
@@ -328,12 +327,20 @@ async function updateStatus(id, status, codigo_rastreio = null) {
 
   const data = await getById(id);
 
-  // Se o pedido foi PAGO agora (mudou para PREPARANDO), incrementa o uso do cupom
-  if (oldStatus !== "PREPARANDO" && status === "PREPARANDO" && data.id_cupom) {
-    const { data: cupom } = await supabase.from("cupom").select("id, usos").eq("id", data.id_cupom).single();
-    if (cupom) {
-      await supabase.from("cupom").update({ usos: cupom.usos + 1 }).eq("id", cupom.id);
+  // Se o pedido foi PAGO agora (mudou para PREPARANDO), incrementa o uso do cupom e emite a nota fiscal
+  if (oldStatus !== "PREPARANDO" && status === "PREPARANDO") {
+    if (data.id_cupom) {
+      const { data: cupom } = await supabase.from("cupom").select("id, usos").eq("id", data.id_cupom).single();
+      if (cupom) {
+        await supabase.from("cupom").update({ usos: cupom.usos + 1 }).eq("id", cupom.id);
+      }
     }
+
+    // Emissão de NF-e automatizada em background
+    const NfeService = require("./nfe/nfeService");
+    NfeService.emitInvoice(id)
+      .then((res) => console.log(`[NFE] NF-e emitida com sucesso para o pedido ${id}. Chave: ${res.chave}`))
+      .catch((err) => console.error(`[NFE] Falha ao emitir NF-e para o pedido ${id}:`, err.message));
   }
 
   // Disparo de Email

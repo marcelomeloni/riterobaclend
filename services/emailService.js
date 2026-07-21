@@ -4,12 +4,13 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 // Como não há domínio verificado, o "from" tem que ser onboarding@resend.dev
 // E o "to" será o e-mail do próprio cliente, porém para testes sem domínio,
 // a API do resend só entregará caso o e-mail do cliente seja o mesmo que cadastrou a conta no Resend.
-const FROM_EMAIL = "Ritero Cafés <onboarding@resend.dev>";
+// UPDATE: Utilizando contato@ritero.com.br conforme solicitado
+const FROM_EMAIL = "Ritero Cafés <contato@ritero.com.br>";
 
 async function sendOrderConfirmation(pedido, cliente) {
   try {
     const HEADER_IMAGE = "https://ccyqvsfnygvrmpffldvo.supabase.co/storage/v1/object/sign/cafes/headeremail.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yMTczOWU0Mi1iYjEzLTQ0YjUtYmFmMy1jZjllOGM0YjFjYjUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJjYWZlcy9oZWFkZXJlbWFpbC5wbmciLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMjc2NTAxLCJleHAiOjE4MTQ4MTI1MDF9.8L8QuuXssJWXL5Eamt94jZzqXqgsSsECF7n8ia5RuNA";
-    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3001";
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
     
     // Gerar o HTML dos itens
     let itensHtml = "";
@@ -244,7 +245,7 @@ async function sendOrderShipped(pedido, cliente) {
 async function sendOrderDelivered(pedido, cliente) {
   try {
     const HEADER_IMAGE = "https://ccyqvsfnygvrmpffldvo.supabase.co/storage/v1/object/sign/cafes/headeremail.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yMTczOWU0Mi1iYjEzLTQ0YjUtYmFmMy1jZjllOGM0YjFjYjUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJjYWZlcy9oZWFkZXJlbWFpbC5wbmciLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMjc2NTAxLCJleHAiOjE4MTQ4MTI1MDF9.8L8QuuXssJWXL5Eamt94jZzqXqgsSsECF7n8ia5RuNA";
-    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3001";
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
     
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
@@ -313,9 +314,82 @@ async function sendOrderDelivered(pedido, cliente) {
     console.error("Exceção ao enviar email de entrega:", error);
   }
 }
+async function sendRecoveryEmail(pedido, cliente) {
+  try {
+    const HEADER_IMAGE = "https://ccyqvsfnygvrmpffldvo.supabase.co/storage/v1/object/sign/cafes/headeremail.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yMTczOWU0Mi1iYjEzLTQ0YjUtYmFmMy1jZjllOGM0YjFjYjUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJjYWZlcy9oZWFkZXJlbWFpbC5wbmciLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMjc2NTAxLCJleHAiOjE4MTQ4MTI1MDF9.8L8QuuXssJWXL5Eamt94jZzqXqgsSsECF7n8ia5RuNA";
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+    
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: cliente.email,
+      subject: `Esqueceu seu café na bancada? ☕`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;600&family=Fraunces:opsz,wght@9..144,400;600&display=swap');
+            body { font-family: 'Work Sans', Helvetica, Arial, sans-serif; background-color: #F7F5F0; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 0 auto; background-color: #FFFFFF; }
+            .header-image { width: 100%; height: auto; display: block; }
+            .content { padding: 40px; }
+            h1 { font-family: 'Fraunces', serif; color: #111111; font-size: 28px; margin-top: 0; }
+            p { color: #4A4A4A; font-size: 16px; line-height: 1.6; margin-top: 0; }
+            
+            .cta-container { text-align: center; margin: 40px 0; }
+            .cta-button { background-color: #D35400; color: #FFFFFF !important; padding: 16px 32px; border-radius: 50px; text-decoration: none !important; font-weight: 600; font-size: 16px; display: inline-block; }
+            
+            .wow-factor { background-color: #FFF9F2; border-left: 3px solid #D35400; padding: 20px; border-radius: 0 8px 8px 0; margin-bottom: 40px; }
+            .wow-title { font-family: 'Fraunces', serif; font-weight: 600; color: #D35400; margin-bottom: 8px; font-size: 18px; }
+            .wow-text { font-size: 15px; color: #666; margin: 0; line-height: 1.6; }
+            
+            .footer { background-color: #111111; padding: 40px; text-align: center; color: #d1d5db; font-size: 14px; }
+            .footer p { margin-bottom: 8px; color: #d1d5db; font-size: 14px; }
+            .footer a { color: #FFFFFF; text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <img src="\${HEADER_IMAGE}" alt="Ritero Cafés Especiais" class="header-image" />
+            
+            <div class="content">
+              <h1>Oi \${cliente.nome.split(' ')[0]}!</h1>
+              <p>Vimos que você iniciou um pedido, mas o pagamento não foi concluído.</p>
+              <p>Como os códigos de pagamento (como o PIX) costumam expirar por segurança, nós cancelamos aquele pedido para você.</p>
+              <p>Mas não se preocupe! Seu café especial continua esperando por você. Volte ao site e refaça seu pedido para não perder essa safra.</p>
+              
+              <div class="cta-container">
+                <a href="\${FRONTEND_URL}/cafes" class="cta-button">Refazer meu pedido</a>
+              </div>
+
+              <div class="wow-factor">
+                <div class="wow-title">🎁 Um empurrãozinho</div>
+                <p class="wow-text">Que tal usar o cupom <strong>VOLTA5</strong> para garantir 5% de desconto no seu novo pedido? Aproveite!</p>
+              </div>
+              
+            </div>
+
+            <div class="footer">
+              <p>Ficou com alguma dúvida? Fale com a gente em <a href="mailto:suporte@ritero.com.br">suporte@ritero.com.br</a></p>
+              <p style="margin-top: 24px; color: #666;">Ritero Cafés Especiais LTDA - CNPJ: 12.345.678/0001-90<br/>São Paulo, SP - Brasil</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) console.error("Erro ao enviar email de recuperação:", error);
+    return data;
+  } catch (error) {
+    console.error("Exceção ao enviar email de recuperação:", error);
+  }
+}
 
 module.exports = {
   sendOrderConfirmation,
   sendOrderShipped,
   sendOrderDelivered,
+  sendRecoveryEmail,
 };

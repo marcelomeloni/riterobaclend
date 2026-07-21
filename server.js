@@ -28,7 +28,11 @@ const app = express();
 // ──────────────────────────────────────
 
 // Helmet – HTTP headers de segurança
-app.use(helmet());
+// Helmet temporariamente desabilitado para testes de CSP
+// app.use(helmet({
+//   contentSecurityPolicy: false,
+//   crossOriginResourcePolicy: false,
+// }));
 
 // CORS
 const allowedOrigins = (process.env.CORS_ORIGIN || "").split(",");
@@ -85,6 +89,29 @@ app.use("/api/admin/dashboard", dashboardRoutes);
 
 // Rotas públicas (E-commerce app)
 app.use("/api/public", publicRoutes);
+
+// ──────────────────────────────────────
+// Cron Jobs (Recuperação de Pedidos)
+// ──────────────────────────────────────
+const cron = require("node-cron");
+const RecoveryService = require("./services/recoveryService");
+
+// Vercel Cron Endpoint (Pode ser chamado via requisição HTTP externa)
+app.get("/api/cron/recovery", async (req, res, next) => {
+  try {
+    const result = await RecoveryService.processAbandonedOrders(5);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cron local (roda a cada 5 minutos caso o Node esteja ligado continuamente)
+if (process.env.NODE_ENV !== "test") {
+  cron.schedule("*/5 * * * *", () => {
+    RecoveryService.processAbandonedOrders(5).catch(console.error);
+  });
+}
 
 // ──────────────────────────────────────
 // Error Handler global

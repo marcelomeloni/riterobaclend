@@ -20,7 +20,7 @@ async function show(req, res, next) {
 /** POST /api/admin/cafes  (com upload opcional de imagem) */
 async function store(req, res, next) {
   try {
-    const { nome, variedade, processo, regiao, torra, cor, ativo } = req.body;
+    const { nome, variedade, processo, regiao, torra, cor, ativo, pontuacao } = req.body;
     let imagem_url = null;
 
     // Se veio arquivo de imagem
@@ -36,6 +36,7 @@ async function store(req, res, next) {
 
     const cafe = await cafeService.create({
       nome, variedade, processo, regiao, torra, cor, imagem_url,
+      pontuacao: pontuacao || null,
       ativo: ativo === 'true' || ativo === true
     });
 
@@ -46,9 +47,10 @@ async function store(req, res, next) {
 /** PUT /api/admin/cafes/:id  (com upload opcional de imagem) */
 async function update(req, res, next) {
   try {
-    const { nome, variedade, processo, regiao, torra, cor, ativo } = req.body;
+    const { nome, variedade, processo, regiao, torra, cor, ativo, pontuacao } = req.body;
     const updateData = { 
       nome, variedade, processo, regiao, torra, cor,
+      pontuacao: pontuacao || null,
       ativo: ativo === 'true' || ativo === true
     };
 

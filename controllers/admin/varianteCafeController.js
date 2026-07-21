@@ -22,7 +22,7 @@ async function show(req, res, next) {
 /** POST /api/admin/variantes (com upload opcional) */
 async function store(req, res, next) {
   try {
-    const { id_cafe, preco, peso_gramas, estoque } = req.body;
+    const { id_cafe, preco, peso_gramas, estoque, preparo } = req.body;
     let imagem_url = null;
 
     if (req.file) {
@@ -34,6 +34,7 @@ async function store(req, res, next) {
 
     const variante = await varianteCafeService.create({
       id_cafe, preco, peso_gramas, estoque, imagem_url,
+      preparo: preparo || 'GRAO',
     });
 
     res.status(201).json(variante);
@@ -43,8 +44,8 @@ async function store(req, res, next) {
 /** PUT /api/admin/variantes/:id (com upload opcional) */
 async function update(req, res, next) {
   try {
-    const { preco, peso_gramas, estoque } = req.body;
-    const updateData = { preco, peso_gramas, estoque };
+    const { preco, peso_gramas, estoque, preparo } = req.body;
+    const updateData = { preco, peso_gramas, estoque, preparo };
 
     if (req.file) {
       const existing = await varianteCafeService.getById(req.params.id);

@@ -318,12 +318,25 @@ async function sendRecoveryEmail(pedido, cliente) {
   try {
     const HEADER_IMAGE = "https://ccyqvsfnygvrmpffldvo.supabase.co/storage/v1/object/sign/cafes/headeremail.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8yMTczOWU0Mi1iYjEzLTQ0YjUtYmFmMy1jZjllOGM0YjFjYjUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJjYWZlcy9oZWFkZXJlbWFpbC5wbmciLCJzY29wZSI6ImRvd25sb2FkIiwiaWF0IjoxNzgzMjc2NTAxLCJleHAiOjE4MTQ4MTI1MDF9.8L8QuuXssJWXL5Eamt94jZzqXqgsSsECF7n8ia5RuNA";
     const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
-    
+    const itensHtml = pedido.itens && pedido.itens.length > 0 
+      ? `<div style="margin: 30px 0; padding: 20px; background-color: #FFF9F2; border-radius: 8px; border: 1px solid #EED4C2;">
+          <p style="font-weight: 600; margin-top: 0; margin-bottom: 12px; font-family: 'Fraunces', serif; font-size: 18px; color: #111;">Itens do seu pedido:</p>
+          <ul style="list-style: none; padding: 0; margin: 0;">
+            ${pedido.itens.map(item => `
+              <li style="padding: 12px 0; border-bottom: 1px dashed #EED4C2; color: #444;">
+                <div style="font-weight: 600; color: #111;">${item.quantidade}x ${item.cafe?.nome || 'Café Especial Ritero'}</div>
+                <div style="font-size: 14px; margin-top: 4px;">${item.peso_gramas}g • ${item.moagem}</div>
+              </li>
+            `).join('')}
+          </ul>
+        </div>` 
+      : '';
+
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: cliente.email,
-      subject: `Esqueceu seu café na bancada? ☕`,
-      html: `
+      subject: \`Esqueceu seu café na bancada? ☕\`,
+      html: \`
         <!DOCTYPE html>
         <html>
         <head>
@@ -351,16 +364,19 @@ async function sendRecoveryEmail(pedido, cliente) {
         </head>
         <body>
           <div class="container">
-            <img src="\${HEADER_IMAGE}" alt="Ritero Cafés Especiais" class="header-image" />
+            <img src="${HEADER_IMAGE}" alt="Ritero Cafés Especiais" class="header-image" />
             
             <div class="content">
-              <h1>Oi \${cliente.nome.split(' ')[0]}!</h1>
+              <h1>Oi ${cliente.nome.split(' ')[0]}!</h1>
               <p>Vimos que você iniciou um pedido, mas o pagamento não foi concluído.</p>
               <p>Como os códigos de pagamento (como o PIX) costumam expirar por segurança, nós cancelamos aquele pedido para você.</p>
+              
+              ${itensHtml}
+
               <p>Mas não se preocupe! Seu café especial continua esperando por você. Volte ao site e refaça seu pedido para não perder essa safra.</p>
               
               <div class="cta-container">
-                <a href="\${FRONTEND_URL}/cafes" class="cta-button">Refazer meu pedido</a>
+                <a href="${FRONTEND_URL}/cafes" class="cta-button">Refazer meu pedido</a>
               </div>
 
               <div class="wow-factor">

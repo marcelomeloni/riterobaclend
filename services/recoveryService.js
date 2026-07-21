@@ -25,6 +25,12 @@ class RecoveryService {
             id_pessoa,
             cpf,
             pessoa ( nome, email )
+          ),
+          itens:item_pedido (
+            quantidade,
+            peso_gramas,
+            moagem,
+            cafe:id_cafe ( nome )
           )
         `)
         .eq("status", "AGUARDANDO_PAGAMENTO")

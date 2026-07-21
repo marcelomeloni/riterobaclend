@@ -35,12 +35,25 @@ const app = express();
 // }));
 
 // CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || "").split(",");
 app.use(
   cors({
     origin: (origin, cb) => {
-      // Permite requests sem origin (Postman, curl, etc) em dev
-      if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+      // Permite requests sem origin (Postman, curl, etc)
+      if (!origin) return cb(null, true);
+      
+      const allowedOrigins = [
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "https://ritero.com.br", 
+        "https://www.ritero.com.br"
+      ];
+      
+      const envOrigins = (process.env.CORS_ORIGIN || "").split(",");
+      
+      if (allowedOrigins.includes(origin) || envOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      
       cb(new Error("CORS bloqueado para esta origem"));
     },
     credentials: true,

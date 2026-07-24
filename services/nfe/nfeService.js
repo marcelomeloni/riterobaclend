@@ -5,6 +5,7 @@ const NfeCryptoService = require("./nfeCryptoService");
 const NfeXmlService = require("./nfeXmlService");
 const NfeSefazService = require("./nfeSefazService");
 const DanfeService = require("./danfeService");
+const xml2js = require("xml2js");
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -70,51 +71,70 @@ class NfeService {
     // 5. Submit to SEFAZ NfeAutorizacao
     console.log("[NFE] Submitting invoice to SEFAZ Web Service...");
     const submitResult = await NfeSefazService.submitLote(signedXml, pfxBuffer, config.pfxPassword);
+    console.log("SEFAZ RAW RESPONSE:", submitResult.rawResponse);
     
-    // Parse submit response to get receipt number (nRec)
-    const retEnviNFe = submitResult.parsed["soap12:Envelope"]?.["soap12:Body"]?.nfeResultMsg?.retEnviNFe;
-    if (!retEnviNFe || retEnviNFe.cStat !== "103") {
-      throw new Error(`SEFAZ batch submission rejected. Code: ${retEnviNFe?.cStat} - Msg: ${retEnviNFe?.xMotivo}`);
+    // Parse submit response to get authorization result or receipt number
+    const envelope1 = submitResult.parsed["soap:Envelope"] || submitResult.parsed["soap12:Envelope"];
+    const body1 = envelope1?.["soap:Body"] || envelope1?.["soap12:Body"];
+    const retEnviNFe = body1?.nfeResultMsg?.retEnviNFe;
+    if (!retEnviNFe) {
+      throw new Error("SEFAZ batch submission returned an empty response.");
     }
     
-    const receiptNo = retEnviNFe.infRec?.nRec;
-    console.log(`[NFE] Batch received by SEFAZ. Receipt number: ${receiptNo}. Starting polling...`);
-
-    // 6. Polling SEFAZ using NfeRetAutorizacao for the authorization protocol
-    let attempts = 0;
-    const maxAttempts = 6;
     let retConsReciNFe = null;
     let authorized = false;
 
-    while (attempts < maxAttempts && !authorized) {
-      attempts++;
-      console.log(`[NFE] Polling authorization protocol (Attempt ${attempts}/${maxAttempts})...`);
-      await sleep(3500); // SEFAZ asks to wait at least 3 seconds between requests
-
-      const pollResult = await NfeSefazService.queryLoteResult(receiptNo, pfxBuffer, config.pfxPassword);
-      retConsReciNFe = pollResult.parsed["soap12:Envelope"]?.["soap12:Body"]?.nfeResultMsg?.retConsReciNFe;
-
-      if (!retConsReciNFe) {
-        console.warn("[NFE] Empty response from SEFAZ status query.");
-        continue;
-      }
-
-      // Code 104 = Processed, now check the specific NFe status inside the protocol
-      if (retConsReciNFe.cStat === "104") {
-        const protNFe = retConsReciNFe.protNFe;
-        const cStatNfe = protNFe?.infProt?.cStat;
-        
-        if (cStatNfe === "100") { // 100 = Authorized
-          authorized = true;
-          console.log(`[NFE] Invoice successfully authorized by SEFAZ! Protocol: ${protNFe.infProt.nProt}`);
-        } else {
-          throw new Error(`Invoice rejected by SEFAZ. Status code: ${cStatNfe} - Reason: ${protNFe?.infProt?.xMotivo}`);
-        }
-      } else if (retConsReciNFe.cStat === "105") { // 105 = Batch in processing
-        console.log("[NFE] Batch is still in processing. Retrying...");
+    // Check if SEFAZ returned synchronous processing result (cStat 104)
+    if (retEnviNFe.cStat === "104") {
+      const protNFe = retEnviNFe.protNFe;
+      const cStatNfe = protNFe?.infProt?.cStat;
+      if (cStatNfe === "100") { // 100 = Authorized
+        authorized = true;
+        retConsReciNFe = retEnviNFe; // Map the struct to use below
+        console.log(`[NFE] Invoice synchronously authorized by SEFAZ! Protocol: ${protNFe.infProt.nProt}`);
       } else {
-        throw new Error(`SEFAZ batch verification failed. Code: ${retConsReciNFe.cStat} - Msg: ${retConsReciNFe.xMotivo}`);
+        throw new Error(`Invoice rejected by SEFAZ. Status code: ${cStatNfe} - Reason: ${protNFe?.infProt?.xMotivo}`);
       }
+    } else if (retEnviNFe.cStat === "103") {
+      // Async processing fallback
+      const receiptNo = retEnviNFe.infRec?.nRec;
+      console.log(`[NFE] Batch received by SEFAZ. Receipt number: ${receiptNo}. Starting polling...`);
+
+      let attempts = 0;
+      const maxAttempts = 6;
+
+      while (attempts < maxAttempts && !authorized) {
+        attempts++;
+        console.log(`[NFE] Polling authorization protocol (Attempt ${attempts}/${maxAttempts})...`);
+        await sleep(3500);
+
+        const pollResult = await NfeSefazService.queryLoteResult(receiptNo, pfxBuffer, config.pfxPassword);
+        const envelope2 = pollResult.parsed["soap:Envelope"] || pollResult.parsed["soap12:Envelope"];
+        const body2 = envelope2?.["soap:Body"] || envelope2?.["soap12:Body"];
+        retConsReciNFe = body2?.nfeResultMsg?.retConsReciNFe;
+
+        if (!retConsReciNFe) {
+          console.warn("[NFE] Empty response from SEFAZ status query.");
+          continue;
+        }
+
+        if (retConsReciNFe.cStat === "104") {
+          const protNFe = retConsReciNFe.protNFe;
+          const cStatNfe = protNFe?.infProt?.cStat;
+          if (cStatNfe === "100") {
+            authorized = true;
+            console.log(`[NFE] Invoice successfully authorized by SEFAZ! Protocol: ${protNFe.infProt.nProt}`);
+          } else {
+            throw new Error(`Invoice rejected by SEFAZ. Status code: ${cStatNfe} - Reason: ${protNFe?.infProt?.xMotivo}`);
+          }
+        } else if (retConsReciNFe.cStat === "105") {
+          console.log("[NFE] Batch is still in processing. Retrying...");
+        } else {
+          throw new Error(`SEFAZ batch verification failed. Code: ${retConsReciNFe.cStat} - Msg: ${retConsReciNFe.xMotivo}`);
+        }
+      }
+    } else {
+      throw new Error(`SEFAZ batch submission rejected. Code: ${retEnviNFe?.cStat} - Msg: ${retEnviNFe?.xMotivo}`);
     }
 
     if (!authorized) {

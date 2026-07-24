@@ -65,20 +65,20 @@ class NfeCryptoService {
     
     // SEFAZ demands enveloped SHA1 signatures with Exclusive Canonicalization (C14N)
     sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
+    sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
     
-    sig.addReference(
-      "//*[local-name()='infNFe']", 
-      [
+    sig.addReference({
+      xpath: "//*[local-name()='infNFe']", 
+      transforms: [
         "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-        "http://www.w3.org/2001/10/xml-exc-c14n#"
+        "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
       ], 
-      "http://www.w3.org/2000/09/xmldsig#sha1"
-    );
+      digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1"
+    });
     
-    sig.signingKey = privateKeyPem;
-    sig.keyInfoProvider = {
-      getKeyInfo: () => `<X509Data><X509Certificate>${x509}</X509Certificate></X509Data>`
-    };
+    sig.privateKey = privateKeyPem;
+    sig.publicCert = Buffer.from(x509);
+    sig.getKeyInfoContent = () => `<X509Data><X509Certificate>${x509}</X509Certificate></X509Data>`;
     
     // Perform signing on target element
     sig.computeSignature(xmlString);

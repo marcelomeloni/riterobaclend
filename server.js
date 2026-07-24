@@ -122,7 +122,8 @@ app.get("/api/cron/recovery", async (req, res, next) => {
 // Cron local (roda a cada 5 minutos caso o Node esteja ligado continuamente)
 if (process.env.NODE_ENV !== "test") {
   cron.schedule("*/5 * * * *", () => {
-    RecoveryService.processAbandonedOrders(5).catch(console.error);
+    // Desabilitado a pedido para evitar o e-mail de "carrinho abandonado" ao gerar QR Code
+    // RecoveryService.processAbandonedOrders(5).catch(console.error);
   });
 }
 

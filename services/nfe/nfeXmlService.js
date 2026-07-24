@@ -71,12 +71,16 @@ class NfeXmlService {
       tpEmis: "1" // Normal
     });
 
-    const emissionDate = today.toISOString().split(".")[0] + "-03:00"; // Brazilian offset
+    const brTime = new Date(today.getTime() - 3 * 3600000);
+    const emissionDate = brTime.toISOString().split(".")[0] + "-03:00";
 
     // Normalize recipient data
     const client = order.cliente || {};
     const person = client.pessoa || {};
-    const destName = (person.nome || "Consumidor Final").slice(0, 60).toUpperCase();
+    let destName = (person.nome || "Consumidor Final").slice(0, 60).toUpperCase();
+    if (config.environment === "2") {
+      destName = "NF-E EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL";
+    }
     const destCpf = (client.cpf || "").replace(/\D/g, "");
     
     // Address data normalization
@@ -98,7 +102,20 @@ class NfeXmlService {
     let itemXMLs = "";
     let subtotal = 0;
     
+    const freightVal = parseFloat(order.valor_frete || 0);
+    const discountVal = parseFloat(order.valor_desconto || 0);
+    let remainingFreight = freightVal;
+    let remainingDiscount = discountVal;
+
+    // First pass to calculate subtotal
     const items = order.item_pedido || [];
+    items.forEach((item) => {
+      const qCom = parseFloat(item.quantidade || 1);
+      const vUnCom = parseFloat(item.preco_unitario || item.preco || 0);
+      subtotal += parseFloat((qCom * vUnCom).toFixed(2));
+    });
+
+    // Map order items to NF-e detail blocks
     items.forEach((item, index) => {
       const nItem = index + 1;
       const variant = item.variante_cafe || {};
@@ -106,9 +123,22 @@ class NfeXmlService {
       const coffeeName = `CAFE ESPECIAL RITERO - ${cafe.nome || "GRAOS"} ${variant.peso_gramas || 250}G`.slice(0, 120).toUpperCase();
       
       const qCom = parseFloat(item.quantidade || 1);
-      const vUnCom = parseFloat(item.preco || 0);
+      const vUnCom = parseFloat(item.preco_unitario || item.preco || 0);
       const vProd = parseFloat((qCom * vUnCom).toFixed(2));
-      subtotal += vProd;
+      
+      let itemFreight = 0;
+      let itemDiscount = 0;
+      
+      if (index === items.length - 1) {
+        // Last item takes the remainder
+        itemFreight = parseFloat(remainingFreight.toFixed(2));
+        itemDiscount = parseFloat(remainingDiscount.toFixed(2));
+      } else {
+        itemFreight = parseFloat(((vProd / subtotal) * freightVal).toFixed(2));
+        itemDiscount = parseFloat(((vProd / subtotal) * discountVal).toFixed(2));
+        remainingFreight -= itemFreight;
+        remainingDiscount -= itemDiscount;
+      }
 
       itemXMLs += `
       <det nItem="${nItem}">
@@ -126,6 +156,8 @@ class NfeXmlService {
           <uTrib>UN</uTrib>
           <qTrib>${qCom.toFixed(4)}</qTrib>
           <vUnTrib>${vUnCom.toFixed(10)}</vUnTrib>
+          ${itemFreight > 0 ? `<vFrete>${itemFreight.toFixed(2)}</vFrete>` : ""}
+          ${itemDiscount > 0 ? `<vDesc>${itemDiscount.toFixed(2)}</vDesc>` : ""}
           <indTot>1</indTot>
         </prod>
         <imposto>
@@ -150,8 +182,6 @@ class NfeXmlService {
       </det>`;
     });
 
-    const freightVal = parseFloat(order.valor_frete || 0);
-    const discountVal = parseFloat(order.valor_desconto || 0);
     const totalVal = parseFloat((subtotal + freightVal - discountVal).toFixed(2));
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -175,6 +205,7 @@ class NfeXmlService {
       <finNFe>1</finNFe>
       <indFinal>1</indFinal>
       <indPres>2</indPres>
+      <indIntermed>0</indIntermed>
       <procEmi>0</procEmi>
       <verProc>1.0</verProc>
     </ide>
@@ -220,7 +251,7 @@ class NfeXmlService {
         <vBC>0.00</vBC>
         <vICMS>0.00</vICMS>
         <vICMSDeson>0.00</vICMSDeson>
-        <vFCP>0.00</vBC>
+        <vFCP>0.00</vFCP>
         <vBCST>0.00</vBCST>
         <vST>0.00</vST>
         <vFCPST>0.00</vFCPST>
@@ -244,7 +275,7 @@ class NfeXmlService {
     </transp>
     <pag>
       <detPag>
-        <tPag>17</tPag> <!-- Pix (electronic) or credit card depending on metadata -->
+        <tPag>01</tPag>
         <vPag>${totalVal.toFixed(2)}</vPag>
       </detPag>
     </pag>
@@ -254,7 +285,8 @@ class NfeXmlService {
   </infNFe>
 </NFe>`.trim();
 
-    return { xml, chave };
+    const xmlMinified = xml.replace(/>\s+</g, "><").replace(/[\r\n]+/g, "").trim();
+    return { xml: xmlMinified, chave };
   }
 }
 

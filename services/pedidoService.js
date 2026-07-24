@@ -337,10 +337,11 @@ async function updateStatus(id, status, codigo_rastreio = null) {
     }
 
     // Emissão de NF-e automatizada em background
-    const NfeService = require("./nfe/nfeService");
-    NfeService.emitInvoice(id)
-      .then((res) => console.log(`[NFE] NF-e emitida com sucesso para o pedido ${id}. Chave: ${res.chave}`))
-      .catch((err) => console.error(`[NFE] Falha ao emitir NF-e para o pedido ${id}:`, err.message));
+    // Desabilitada temporariamente a pedido
+    // const NfeService = require("./nfe/nfeService");
+    // NfeService.emitInvoice(id)
+    //   .then((res) => console.log(`[NFE] NF-e emitida com sucesso para o pedido ${id}. Chave: ${res.chave}`))
+    //   .catch((err) => console.error(`[NFE] Falha ao emitir NF-e para o pedido ${id}:`, err.message));
   }
 
   // Disparo de Email

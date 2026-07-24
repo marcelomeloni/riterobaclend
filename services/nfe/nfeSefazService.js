@@ -46,25 +46,18 @@ class NfeSefazService {
   static async submitLote(signedXml, pfxBuffer, pfxPassword, url) {
     const targetUrl = url || "https://homologacao.nfe.fazenda.sp.gov.br/ws/nfeautorizacao4.asmx";
     
-    // Wrap inside standard SOAP 1.2 envelope
-    const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
-    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeAutorizacao4">
-      <enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-        <idLote>${Math.floor(100000 + Math.random() * 900000)}</idLote>
-        <indSinc>0</indSinc> <!-- Asynchronous submission -->
-        ${signedXml}
-      </enviNFe>
-    </nfeDadosMsg>
-  </soap12:Body>
-</soap12:Envelope>`.trim();
+    // Wrap inside standard SOAP 1.2 envelope without newlines
+    const idLote = Math.floor(100000 + Math.random() * 900000);
+    const cleanSignedXml = signedXml.replace(/<\?xml.*\?>/g, "").replace(/>\s+</g, "><").trim();
+    const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4"><enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><idLote>${idLote}</idLote><indSinc>1</indSinc>${cleanSignedXml}</enviNFe></nfeDadosMsg></soap12:Body></soap12:Envelope>`;
 
     const agent = this.getHttpsAgent(pfxBuffer, pfxPassword);
 
+    require('fs').writeFileSync('soapEnvelope.xml', soapEnvelope);
+
     const response = await axios.post(targetUrl, soapEnvelope, {
       headers: {
-        "Content-Type": "application/soap+xml; charset=utf-8",
+        "Content-Type": 'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeAutorizacao4/nfeAutorizacaoLote"',
       },
       httpsAgent: agent,
       timeout: 15000
@@ -89,23 +82,13 @@ class NfeSefazService {
     const targetUrl = url || "https://homologacao.nfe.fazenda.sp.gov.br/ws/nferetautorizacao4.asmx";
     const environment = process.env.NFE_ENVIRONMENT || "2";
 
-    const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?>
-<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-  <soap12:Body>
-    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NfeRetAutorizacao4">
-      <consReciNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
-        <tpAmb>${environment}</tpAmb>
-        <nRec>${receiptNo}</nRec>
-      </consReciNFe>
-    </nfeDadosMsg>
-  </soap12:Body>
-</soap12:Envelope>`.trim();
+    const soapEnvelope = `<?xml version="1.0" encoding="utf-8"?><soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope"><soap12:Body><nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4"><consReciNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00"><tpAmb>${environment}</tpAmb><nRec>${receiptNo}</nRec></consReciNFe></nfeDadosMsg></soap12:Body></soap12:Envelope>`;
 
     const agent = this.getHttpsAgent(pfxBuffer, pfxPassword);
 
     const response = await axios.post(targetUrl, soapEnvelope, {
       headers: {
-        "Content-Type": "application/soap+xml; charset=utf-8",
+        "Content-Type": 'application/soap+xml; charset=utf-8; action="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRetAutorizacao4/nfeRetAutorizacaoLote"',
       },
       httpsAgent: agent,
       timeout: 15000
